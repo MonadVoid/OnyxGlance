@@ -5,3 +5,5 @@
 onyx_glance/code/.cache/
 onyx_glance/code/.exe/
 onyx_glance/code/compile_commands.json
+onyx_glance/misc/.emacs
+onyx_glance/misc/emacs_keybindings.txt
