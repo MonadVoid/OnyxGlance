@@ -1,0 +1,7 @@
+# Ignore the entire build directory and its compiler outputs
+/build/
+
+# Ignore editor and tooling artifacts inside handmade
+onyx_glance/code/.cache/
+onyx_glance/code/.exe/
+onyx_glance/code/compile_commands.json

@@ -1,0 +1,18 @@
+# Use this for editor preferences and LSP target override
+Index:
+  Background: Build
+
+InlayHints:
+  Enabled: No
+  ParameterNames: No
+  DeducedTypes: No
+
+CompileFlags:
+  Add:
+    [
+      "-target",
+      "x86_64-pc-windows-msvc",
+      "-fms-extensions",
+      "-fms-compatibility",
+      "-fmsc-version=1950",
+    ]

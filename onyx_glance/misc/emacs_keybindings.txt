@@ -1,0 +1,51 @@
+Molly Rocket - Basic Emacs Tutorial
+Quick Reference Guide for Casey's .emacs Key Bindings
+=====================================================
+
+File Navigation & Window Management
+-----------------------------------
+Alt + B          - Switch to buffer in the current window
+Alt + Shift + B  - Switch to buffer in the other window
+
+Alt + F          - Load a file in the current window
+Alt + Shift + F  - Load a file in the other window
+Alt + C          - Toggle between the .h (header) and .cpp file in the current window
+Alt + Shift + C  - Open/toggle the corresponding .h/.cpp file in the other window
+
+Alt + S          - Save the file in the current window
+Alt + W          - Switch / toggle focus to the other window
+Alt + K          - Kill / close the current buffer (prompts to save if modified)
+
+Text Editing & Block Operations
+-------------------------------
+Control + Space  - Set the mark (records the structural point for a block reference)
+Control + Tab    - Reindent the marked block / region automatically
+Control + Q      - Copy the marked block / region to the paste buffer
+Control + F      - Paste (yank) the block from the buffer
+Control + W      - Cut (kill) the marked block / region
+Alt + U          - Undo (operates on a continuous un-winding history buffer)
+
+Advanced Navigation & Refactoring
+---------------------------------
+Alt + Shift + :  - (Alt + Colon) Pop back to previously marked cursor locations in history
+Alt + J          - Jump to a function by name (brings up an indexed menu of functions)
+Control + S      - Start incremental search forward (press again to move to next occurrence)
+Control + R      - Start incremental search backward / move to previous occurrence
+Alt + O          - Query replace (find and replace text interactively with 'y' or 'n')
+Alt + L          - Replace text inside the marked block / region only
+Alt + .          - Reflow paragraph / comment wrapper cleanly (inserts comment markers as needed)
+Alt + G          - Go to line number directly
+
+Compilation Workflow
+--------------------
+Alt + M          - Trigger compiler / execution framework (looks for and executes build.bat)
+Alt + N          - Go to the next compiler error / compilation match
+Alt + Shift + N  - Go to the previous compiler error / compilation match
+Alt + R          - Revert buffer (discards all unsaved changes and reloads file from disk)
+
+Cursor Movements
+----------------
+Control + Arrow  - Move cursor by larger increments (Left/Right by word, Up/Down by whitespace)
+Tab              - Cycle through word completions matching buffer context
+Escape + X       - Execute custom command via the mini-buffer (Meta-X command mode)
+Control + G      - Abort / cancel current command context or escape the mini-buffer

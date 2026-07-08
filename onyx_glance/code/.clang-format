@@ -1,0 +1,21 @@
+BasedOnStyle: LLVM
+SortIncludes: Never
+IncludeBlocks: Preserve
+IndentWidth: 4
+UseTab: Never
+ColumnLimit: 0
+BinPackArguments: true
+BinPackParameters: true
+AlignAfterOpenBracket: Align
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterControlStatement: true
+  AfterFunction: true
+  AfterNamespace: false
+  AfterStruct: true
+  AfterUnion: true
+  BeforeCatch: true
+  BeforeElse: true
+  AfterCaseLabel: true
+IndentCaseLabels: true
