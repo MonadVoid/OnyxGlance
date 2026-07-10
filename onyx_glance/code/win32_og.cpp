@@ -3,6 +3,7 @@
 #include <Xinput.h>
 #include <dsound.h>
 #include <math.h>
+#include <stdio.h>
 
 #define local_persist static
 #define global_variable static
@@ -361,6 +362,8 @@ struct win32_sound_output
     int BytesPerSample;
     int WavePeriod;
     int SecondaryBufferSize;
+    real32 tSine;
+    int LatencySampleCount;
 };
 
 internal void Win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteToLock, DWORD BytesToWrite)
@@ -384,22 +387,22 @@ internal void Win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteTo
 
         for (DWORD SampleIndex = 0; SampleIndex < Region1SampleCount; SampleIndex++)
         {
-            real32 t = 2.0f * Pi32 * (real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod;
-            real32 SineValue = sinf(t);
+            real32 SineValue = sinf(SoundOutput->tSine);
             int16 SampleValue = (int16)(SineValue * SoundOutput->ToneVolume);
             *SampleOut++ = SampleValue;
             *SampleOut++ = SampleValue;
+            SoundOutput->tSine = 2.0f * Pi32 * 1.0f / (real32)SoundOutput->WavePeriod;
             SoundOutput->RunningSampleIndex++;
         }
 
         SampleOut = (int16 *)Region2;
         for (DWORD SampleIndex = 0; SampleIndex < Region2SampleCount; SampleIndex++)
         {
-            real32 t = 2.0f * Pi32 * (real32)SoundOutput->RunningSampleIndex / (real32)SoundOutput->WavePeriod;
-            real32 SineValue = sinf(t);
+            real32 SineValue = sinf(SoundOutput->tSine);
             int16 SampleValue = (int16)(SineValue * SoundOutput->ToneVolume);
             *SampleOut++ = SampleValue;
             *SampleOut++ = SampleValue;
+            SoundOutput->tSine = 2.0f * Pi32 * 1.0f / (real32)SoundOutput->WavePeriod;
             SoundOutput->RunningSampleIndex++;
         }
         GlobalSecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
@@ -408,6 +411,10 @@ internal void Win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteTo
 
 int WINAPI WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PSTR CommandLine, int ShowCode)
 {
+    LARGE_INTEGER PerfCountFrequencyResult;
+    QueryPerformanceFrequency(&PerfCountFrequencyResult);
+    int64_t PerfCountFrequency = PerfCountFrequencyResult.QuadPart;
+
     Win32LoadXinput();
     Win32ResizeDIBSection(&GlobalBackBuffer, 1280, 720);
 
@@ -441,9 +448,15 @@ int WINAPI WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PSTR CommandLine,
             SoundOutput.BytesPerSample = sizeof(int16) * 2;
             SoundOutput.WavePeriod = SoundOutput.SamplesPerSecond / SoundOutput.ToneHz;
             SoundOutput.SecondaryBufferSize = SoundOutput.SamplesPerSecond * SoundOutput.BytesPerSample;
+            SoundOutput.LatencySampleCount = SoundOutput.SamplesPerSecond / 15;
             Win32InitDSound(Window, SoundOutput.SamplesPerSecond, SoundOutput.SecondaryBufferSize);
-            Win32FillSoundBuffer(&SoundOutput, 0, SoundOutput.SecondaryBufferSize);
+            Win32FillSoundBuffer(&SoundOutput, 0, SoundOutput.LatencySampleCount * SoundOutput.BytesPerSample);
             GlobalSecondaryBuffer->Play(0, 0, DSBPLAY_LOOPING);
+
+            // For time measure
+            LARGE_INTEGER LastCounter;
+            QueryPerformanceCounter(&LastCounter);
+            uint64_t LastCycleCounter = __rdtsc();
 
             GlobalRunning = true;
             while (GlobalRunning)
@@ -499,32 +512,51 @@ int WINAPI WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PSTR CommandLine,
                 if (SUCCEEDED(GlobalSecondaryBuffer->GetCurrentPosition(
                         &PlayCursor, &WriteCursor)))
                 {
-                    DWORD ByteToLock = (SoundOutput.RunningSampleIndex * SoundOutput.BytesPerSample) % SoundOutput.SecondaryBufferSize;
+                    DWORD ByteToLock = (SoundOutput.RunningSampleIndex * SoundOutput.BytesPerSample) %
+                                       SoundOutput.SecondaryBufferSize;
+
+                    DWORD TargetCursor = (PlayCursor +
+                                          (SoundOutput.LatencySampleCount * SoundOutput.BytesPerSample)) %
+                                         SoundOutput.SecondaryBufferSize;
                     DWORD BytesToWrite;
 
                     // TODO(): Change this to lower latency offset from the playcursor
                     // when we actually start having sound effects
-                    if (ByteToLock == PlayCursor)
-                    {
-                        BytesToWrite = 0;
-                    }
-                    else if (ByteToLock > PlayCursor)
+                    if (ByteToLock > TargetCursor)
                     {
                         BytesToWrite = (SoundOutput.SecondaryBufferSize - ByteToLock);
-                        BytesToWrite += PlayCursor;
+                        BytesToWrite += TargetCursor;
                     }
                     else
                     {
-                        BytesToWrite = PlayCursor - ByteToLock;
+                        BytesToWrite = TargetCursor - ByteToLock;
                     }
+
                     Win32FillSoundBuffer(&SoundOutput, ByteToLock, BytesToWrite);
                 }
-
                 win32_window_dimension Dimension = Win32GetWindowDimension(Window);
                 Win32DisplayBufferinWindow(&GlobalBackBuffer, DeviceContext, Dimension.Width, Dimension.Height);
 
                 ++Xoffset;
                 ++Yoffset;
+
+                // For time measure
+                uint64_t EndCycleCounter = __rdtsc();
+
+                LARGE_INTEGER EndCounter;
+                QueryPerformanceCounter(&EndCounter);
+                uint64_t CyclesElapsed = EndCycleCounter - LastCycleCounter;
+                int64_t CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+                float MSPerFrame = CounterElapsed * 1000.0f / PerfCountFrequency;
+                float FPS = (float)PerfCountFrequency / CounterElapsed;
+                float MCPF = (float)CyclesElapsed / 1000 / 1000;
+
+                char Buffer[256];
+                sprintf(Buffer, "%.2fms/f  %.2ff/s  %.2fMC/f \n", MSPerFrame, FPS, MCPF);
+                OutputDebugStringA(Buffer);
+
+                LastCounter = EndCounter;
+                LastCycleCounter = EndCycleCounter;
             }
         }
     }
