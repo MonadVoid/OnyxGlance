@@ -1,9 +1,20 @@
-#include <windows.h>
+/*
+ * TODO(): This is not a final platform layer
+ * Save game location
+ * Asset laoding path
+ * Threading
+ * Raw Input (support for multiple keyboards)
+ * Sleep/timeBeginPeriod
+ * ClipCursor() (for multi monitor support)
+ * Fullscreen support
+ * WM_SETCURSOR (contorl cursor visibility)
+ * QueryCancelAutoplay
+ * WM_ACTIVATEAPP
+ * Blit Speed Improvement (BitBlt)
+ * Hardware Acceleration (OpenGl or Vulkan or maybe in another life)
+ */
+
 #include <stdint.h>
-#include <Xinput.h>
-#include <dsound.h>
-#include <math.h>
-#include <stdio.h>
 
 #define local_persist static
 #define global_variable static
@@ -24,6 +35,13 @@ typedef int32 bool32;
 
 typedef float real32;
 typedef double real64;
+
+#include "onyx_glance.cpp"
+#include <windows.h>
+#include <Xinput.h>
+#include <dsound.h>
+#include <math.h>
+// #include <stdio.h>
 
 struct win32_off_screen_buffer
 {
@@ -175,26 +193,6 @@ internal win32_window_dimension Win32GetWindowDimension(HWND Window)
     Result.Width = ClientRect.right - ClientRect.left;
 
     return Result;
-}
-
-internal void
-RenderWeirdGradient(win32_off_screen_buffer *Buffer, int XOffset, int YOffset)
-{
-    uint8 *Row = (uint8 *)Buffer->Memory;
-
-    for (int Y = 0; Y < Buffer->Height; Y++)
-    {
-        uint32 *Pixel = (uint32 *)Row;
-        for (int X = 0; X < Buffer->Width; X++)
-        {
-            // Pixel in memory BBGGRRxx
-            uint8 Blue = (X + XOffset);
-            uint8 Green = (Y + YOffset);
-            *Pixel++ = (Green << 8 | Blue);
-        }
-
-        Row += Buffer->Pitch;
-    }
 }
 
 internal void Win32ResizeDIBSection(win32_off_screen_buffer *Buffer, int Width, int Height)
@@ -391,7 +389,7 @@ internal void Win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteTo
             int16 SampleValue = (int16)(SineValue * SoundOutput->ToneVolume);
             *SampleOut++ = SampleValue;
             *SampleOut++ = SampleValue;
-            SoundOutput->tSine = 2.0f * Pi32 * 1.0f / (real32)SoundOutput->WavePeriod;
+            SoundOutput->tSine += 2.0f * Pi32 * 1.0f / (real32)SoundOutput->WavePeriod;
             SoundOutput->RunningSampleIndex++;
         }
 
@@ -402,7 +400,7 @@ internal void Win32FillSoundBuffer(win32_sound_output *SoundOutput, DWORD ByteTo
             int16 SampleValue = (int16)(SineValue * SoundOutput->ToneVolume);
             *SampleOut++ = SampleValue;
             *SampleOut++ = SampleValue;
-            SoundOutput->tSine = 2.0f * Pi32 * 1.0f / (real32)SoundOutput->WavePeriod;
+            SoundOutput->tSine += 2.0f * Pi32 * 1.0f / (real32)SoundOutput->WavePeriod;
             SoundOutput->RunningSampleIndex++;
         }
         GlobalSecondaryBuffer->Unlock(Region1, Region1Size, Region2, Region2Size);
@@ -443,7 +441,7 @@ int WINAPI WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PSTR CommandLine,
             win32_sound_output SoundOutput = {};
             SoundOutput.SamplesPerSecond = 48000;
             SoundOutput.ToneHz = 256;
-            SoundOutput.ToneVolume = 3000;
+            SoundOutput.ToneVolume = 4000;
             SoundOutput.RunningSampleIndex = 0;
             SoundOutput.BytesPerSample = sizeof(int16) * 2;
             SoundOutput.WavePeriod = SoundOutput.SamplesPerSecond / SoundOutput.ToneHz;
@@ -504,7 +502,13 @@ int WINAPI WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PSTR CommandLine,
                         // Controller not plugged in
                     }
                 }
-                RenderWeirdGradient(&GlobalBackBuffer, Xoffset, Yoffset);
+
+                GameOffscreenBuffer Buffer;
+                Buffer.Memory = GlobalBackBuffer.Memory;
+                Buffer.Width = GlobalBackBuffer.Width;
+                Buffer.Height = GlobalBackBuffer.Height;
+                Buffer.Pitch = GlobalBackBuffer.Pitch;
+                GameUpdateAndRender(&Buffer, Xoffset, Yoffset);
 
                 // NOTE: Direct Sound output test
                 DWORD PlayCursor;
@@ -545,15 +549,17 @@ int WINAPI WinMain(HINSTANCE Instance, HINSTANCE PrevInstance, PSTR CommandLine,
 
                 LARGE_INTEGER EndCounter;
                 QueryPerformanceCounter(&EndCounter);
-                uint64_t CyclesElapsed = EndCycleCounter - LastCycleCounter;
-                int64_t CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
-                float MSPerFrame = CounterElapsed * 1000.0f / PerfCountFrequency;
-                float FPS = (float)PerfCountFrequency / CounterElapsed;
-                float MCPF = (float)CyclesElapsed / 1000 / 1000;
+                uint64 CyclesElapsed = EndCycleCounter - LastCycleCounter;
+                int64 CounterElapsed = EndCounter.QuadPart - LastCounter.QuadPart;
+                real64 MSPerFrame = (real64)CounterElapsed * 1000.0f / (real64)PerfCountFrequency;
+                real64 FPS = (real64)PerfCountFrequency / (real64)CounterElapsed;
+                real64 MCPF = (real64)CyclesElapsed / (1000.0f * 1000.0f);
 
+#if 0
                 char Buffer[256];
-                sprintf(Buffer, "%.2fms/f  %.2ff/s  %.2fMC/f \n", MSPerFrame, FPS, MCPF);
+                sprintf(Buffer, "%.2fms/f  %.2ffps  %.2fMC/f \n", MSPerFrame, FPS, MCPF);
                 OutputDebugStringA(Buffer);
+#endif
 
                 LastCounter = EndCounter;
                 LastCycleCounter = EndCycleCounter;

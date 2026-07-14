@@ -16,3 +16,9 @@ CompileFlags:
       "-fms-compatibility",
       "-fmsc-version=1950",
     ]
+
+---
+If:
+  PathMatch: .*onyx_glance\.cpp
+CompileFlags:
+  Add: [-include, win32_og.cpp]
