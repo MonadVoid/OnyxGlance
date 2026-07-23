@@ -18,7 +18,8 @@ CompileFlags:
     ]
 
 ---
+# For ALL C/C++ files in your project, force-include the file that defines your types
 If:
-  PathMatch: .*onyx_glance\.cpp
+  PathMatch: .*\.(h|cpp)
 CompileFlags:
-  Add: [-include, win32_og.cpp]
+  Add: [-include, .clangd_helper.h]

@@ -12,6 +12,12 @@ struct GameOffscreenBuffer
     int Pitch;
 };
 
+struct game_sound_output_buffer
+{
+    int SamplesPerSecond;
+    int SampleCount;
+    int16 *Samples;
+};
 internal void GameUpdateAndRender(GameOffscreenBuffer *Buffer, int BlueOffset, int GreenOffset);
 
 #define ONYXGLANCE_H
